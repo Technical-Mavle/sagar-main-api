@@ -59,13 +59,24 @@ async def understand_and_execute(request: PromptRequest, background_tasks: Backg
         # 1. Call the search function directly to get context for the LLM
         available_datasets = await search_metadata()
         
-        # 2. Construct a detailed prompt for the Gemini model
+        # 2. --- REFINED PROMPT ---
+        # This new prompt gives the model clearer rules for selecting files.
         context_prompt = f"""
-        User prompt: "{request.prompt}"
-        Available datasets: {available_datasets}
-        Based on the user prompt and datasets, determine the parameters for the 'discover_and_correlate' function.
-        Focus on file IDs and exact column names from the metadata. For fish count, use 'individualCount'. For ozone, use 'TO3'.
-        For coordinates in tabular data, use 'decimalLatitude'/'decimalLongitude'. For coordinates in netcdf data, use 'lat'/'lon'.
+        You are an expert data science assistant. Your task is to select the correct datasets to answer a user's question.
+
+        Here is the user's request: "{request.prompt}"
+
+        Here is a list of available datasets from the database:
+        {available_datasets}
+
+        INSTRUCTIONS:
+        1. Identify the two types of data the user wants to compare (e.g., 'fish count' and 'ozone levels').
+        2. Find the corresponding datasets in the provided list.
+        3. **CRITICAL RULE**: If multiple files have the same 'original_filename' (e.g., multiple 'occurrence.txt' files), you MUST choose the one with the HIGHEST 'id' number, as it is the most recent version.
+        4. Extract the correct 'id' and the exact column names from the 'metadata_payload' for your analysis.
+        5. For coordinates, use 'decimalLatitude'/'decimalLongitude' for tabular data and 'lat'/'lon' for netcdf data.
+        
+        Now, based on these instructions, determine the parameters for the 'discover_and_correlate' function.
         """
         
         # 3. Call the Gemini API
@@ -82,7 +93,6 @@ async def understand_and_execute(request: PromptRequest, background_tasks: Backg
         api_parameters = dict(function_call.args)
         
         # 5. Call the backend function directly
-        # Create an OrchestrationRequest object to ensure data types are correct
         backend_request = OrchestrationRequest(**api_parameters)
         return await discover_and_correlate_data(backend_request, background_tasks)
 
