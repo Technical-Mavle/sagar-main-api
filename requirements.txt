@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+supabase
+python-dotenv
+google-generativeai
+httpx
+pandas
+pyarrow
+scikit-learn
+geopandas
+shapely
